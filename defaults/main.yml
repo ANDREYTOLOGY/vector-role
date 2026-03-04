@@ -1,2 +1,35 @@
 ---
-# defaults file for .
+# Версия пакета Vector
+vector_version: "0.34.1"
+
+# Путь к основному конфигу Vector
+vector_config_path: /etc/vector/vector.yaml
+
+# Имя systemd-сервиса
+vector_service_name: vector
+
+# Управление сервисом
+vector_service_enabled: true
+vector_service_state: started
+
+# Настройка репозитория Vector (Debian/Ubuntu)
+vector_repo_key_url: "https://repositories.timber.io/public/vector/cfg/gpg/gpg.4096.pem"
+
+# По умолчанию используем репо Ubuntu с codename текущего дистрибутива
+vector_repo_baseurl: "https://repositories.timber.io/public/vector/deb/ubuntu"
+vector_repo_distribution: "{{ ansible_facts.distribution_release }}"
+vector_repo_components: "main"
+
+vector_sources:
+  demo_logs:
+    type: demo_logs
+    format: syslog
+
+vector_transforms: {}
+
+vector_sinks:
+  out:
+    type: console
+    inputs: ["demo_logs"]
+    encoding:
+      codec: json

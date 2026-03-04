@@ -1,2 +1,47 @@
 ---
-# tasks file for .
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gpg
+    update_cache: true
+  become: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Vector APT repository key
+  ansible.builtin.apt_key:
+    url: https://repositories.timber.io/public/vector/cfg/gpg/gpg.4096.pem
+    state: present
+  become: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Vector APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://repositories.timber.io/public/vector/deb/ubuntu {{ ansible_facts.distribution_release }} main"
+    state: present
+  become: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Vector
+  ansible.builtin.apt:
+    name: "vector={{ vector_version }}*"
+    update_cache: true
+  become: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Render Vector config
+  ansible.builtin.template:
+    src: vector.yml.j2
+    dest: "{{ vector_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart vector
+
+- name: Enable and start Vector
+  ansible.builtin.service:
+    name: "{{ vector_service_name }}"
+    enabled: true
+    state: started
+  become: true
