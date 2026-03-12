@@ -69,10 +69,16 @@
 
 - name: Gather service facts
   ansible.builtin.service_facts:
+  when:
+    - ansible_facts.os_family == "Debian"
+    - not (vector_skip_service | default(false))
 
 - name: Enable and start vector
   ansible.builtin.service:
     name: vector
     state: started
     enabled: true
-  when: "'vector.service' in ansible_facts.services"
+  when:
+    - ansible_facts.os_family == "Debian"
+    - not (vector_skip_service | default(false))
+    - "'vector.service' in ansible_facts.services"
