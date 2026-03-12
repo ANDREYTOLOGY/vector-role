@@ -1,55 +1,46 @@
-vector-role
-=========
+# Домашнее задание к занятию "`Тестирование roles`" - `Чернышов Андрей`
 
-Устанавливает и настраивает Vector.
+### Задание 1
 
-Requirements
-------------
+Cкриншот molecule test -s ubuntu_xenial
+![ansible 1](https://github.com/ANDREYTOLOGY/terraform-hw/blob/main/img/ansible-1.png)  
 
-Debian/Ubuntu (APT).
+скриншот создайте сценарий тестирования по умолчанию при помощи molecule init scenario --driver-name docker.
+![ansible 2](https://github.com/ANDREYTOLOGY/terraform-hw/blob/main/img/ansible-2.png)  
 
-Role Variables
---------------
+При тестировании роли vector-role на oraclelinux:8 была выявлена проблема установки пакета vector из внешнего репозитория yum.vector.dev: загрузка RPM-пакета в контейнере завершалась по таймауту.  
+Ошибка носила внешний сетевой характер и не была связана с логикой Ansible-роли. На ubuntu:latest сценарий тестирования отрабатывал корректно после исправления задач установки и конфигурации.  
 
-- `vector_version` (string) — версия Vector, напр. `0.34.1`
-- `vector_config_path` — путь конфига, по умолчанию `/etc/vector/vector.yaml`
-- `vector_sources` — словарь sources
-- `vector_sinks` — словарь sinks
+![curl error](https://github.com/ANDREYTOLOGY/terraform-hw/blob/main/img/curl-error.png)  
 
+В связи с этим полноценная проверка установки и запуска сервиса была выполнена на ubuntu:latest, а oraclelinux:8 оставлен в сценарии как дополнительный тестовый инстанс для фиксации выявленной проблемы среды.  
 
-Example Playbook
-----------------
+![ansible 3](https://github.com/ANDREYTOLOGY/terraform-hw/blob/main/img/ansible-3.png)  
 
-```yaml
-- hosts: vector
-  become: true
-  roles:
-    - role: vector
-      vector_version: "0.34.1"
-      vector_config_path: /etc/vector/vector.yaml
-      
-      vector_sources:
-        demo_logs:
-          type: demo_logs
-          format: syslog
+Для роли vector-role был создан сценарий Molecule. В сценарий были добавлены два инстанса: ubuntu:latest и oraclelinux:8.  
+В процессе тестирования были исправлены ошибки роли, связанные с установкой Vector, настройкой репозитория и шаблоном конфигурации.   
+Для verify.yml были добавлены проверки наличия бинарного файла vector, существования конфигурационного файла, валидности конфигурации и состояния сервиса.  
+На oraclelinux:8 была выявлена проблема загрузки пакета из внешнего репозитория, связанная с сетевой ошибкой тестовой среды, поэтому основная проверка работоспособности роли была подтверждена на ubuntu:latest.
 
-      vector_sinks:
-        out:
-          type: console
-          inputs: ["demo_logs"]
-          encoding:
-            codec: json
-```
+### Задание 2
 
-License
--------
+Скриншот вывода команды tox внутри контейнера  
+![tox 1](https://github.com/ANDREYTOLOGY/terraform-hw/blob/main/img/tox-1.png)  
+Внутри контейнера был выполнен запуск tox, после чего был проанализирован вывод команды. На начальном этапе были выявлены проблемы:  
+отсутствовал сценарий molecule/compatibility;  
+возникали конфликты версий molecule, molecule_podman, tox и ansible-core;  
+часть версий, указанных изначально, была недоступна в используемом репозитории пакетов внутри контейнера.  
 
-BSD
+Для решения проблемы был создан облегченный сценарий Molecule с драйвером podman в каталоге molecule/compatibility.  
+В этом сценарии использовался облегченный подход к проверке роли:  
+выполнялась установка роли;  
+проверялось наличие бинарного файла vector;  
+проверялось наличие конфигурационного файла;  
+выполнялась проверка валидности конфигурации vector validate.  
 
-Author Information
-------------------
+Также в роль была добавлена возможность пропуска управления сервисом через переменную vector_skip_service, чтобы облегченный контейнерный сценарий не зависел от запуска systemd-сервиса внутри тестового окружения.  
 
-Andrey Chernyshov  
-System Administrator  
-GitHub: https://github.com/ANDREYTOLOGY
-# mnt-homeworks-testing
+![tox 2](https://github.com/ANDREYTOLOGY/terraform-hw/blob/main/img/tox-2.png)  
+
+После этого был скорректирован файл tox.ini, чтобы команда tox запускала именно облегченный сценарий.  
+
