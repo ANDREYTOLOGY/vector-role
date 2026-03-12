@@ -1,0 +1,72 @@
+---
+- name: Create
+  hosts: localhost
+  gather_facts: false
+  vars:
+    molecule_inventory:
+      all:
+        children:
+          molecule:
+            hosts: {}
+
+  tasks:
+    - name: Create containers
+      community.docker.docker_container:
+        name: "{{ item.name }}"
+        image: "{{ item.image }}"
+        state: started
+        command: "sleep 1d"
+        log_driver: json-file
+      register: result
+      loop: "{{ molecule_yml.platforms }}"
+
+    - name: Show container create result
+      ansible.builtin.debug:
+        var: result.results
+
+    - name: Fail if container is not running
+      ansible.builtin.assert:
+        that:
+          - item.container is defined
+          - item.container.State is defined
+          - item.container.State.Running
+        fail_msg: "Контейнер {{ item.item.name }} не запустился"
+      loop: "{{ result.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Add containers to molecule inventory
+      ansible.builtin.set_fact:
+        molecule_inventory: >-
+          {{
+            molecule_inventory | combine(
+              {
+                'all': {
+                  'children': {
+                    'molecule': {
+                      'hosts': {
+                        item.name: {
+                          'ansible_connection': 'community.docker.docker',
+                          'ansible_user': 'root',
+                          'ansible_python_interpreter': '/usr/bin/python3.9' if item.name == 'oraclelinux8' else '/usr/bin/python3'
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              recursive=True
+            )
+          }}
+      loop: "{{ molecule_yml.platforms }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Write molecule inventory
+      ansible.builtin.copy:
+        dest: "{{ molecule_ephemeral_directory }}/inventory/molecule_inventory.yml"
+        content: "{{ molecule_inventory | to_nice_yaml }}"
+        mode: "0600"
+
+    - name: Refresh inventory
+      ansible.builtin.meta: refresh_inventory

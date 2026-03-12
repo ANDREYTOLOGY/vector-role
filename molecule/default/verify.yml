@@ -1,0 +1,71 @@
+---
+- name: Verify
+  hosts: molecule
+  gather_facts: true
+
+  tasks:
+    - name: Check vector binary on Debian
+      ansible.builtin.command: which vector
+      register: vector_bin
+      changed_when: false
+      failed_when: false
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Assert vector is installed on Debian
+      ansible.builtin.assert:
+        that:
+          - vector_bin.rc == 0
+        fail_msg: "vector не найден в PATH"
+        success_msg: "vector установлен"
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Check vector config exists on Debian
+      ansible.builtin.stat:
+        path: /etc/vector/vector.yaml
+      register: vector_config
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Assert vector config exists on Debian
+      ansible.builtin.assert:
+        that:
+          - vector_config.stat.exists
+        fail_msg: "Файл /etc/vector/vector.yaml не найден"
+        success_msg: "Файл конфигурации vector найден"
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Validate vector config on Debian
+      ansible.builtin.command: vector validate /etc/vector/vector.yaml
+      register: vector_validate
+      changed_when: false
+      failed_when: false
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Assert vector config is valid on Debian
+      ansible.builtin.assert:
+        that:
+          - vector_validate.rc == 0
+        fail_msg: "Конфиг Vector невалиден"
+        success_msg: "Конфиг Vector валиден"
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Gather service facts on Debian
+      ansible.builtin.service_facts:
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Assert vector service exists on Debian
+      ansible.builtin.assert:
+        that:
+          - "'vector.service' in ansible_facts.services"
+        fail_msg: "Сервис vector.service не найден"
+        success_msg: "Сервис vector.service найден"
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Assert vector service state on Debian
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['vector.service'].state == 'running'
+        fail_msg: "Сервис vector не запущен"
+        success_msg: "Сервис vector запущен"
+      when:
+        - ansible_facts.os_family == "Debian"
+        - "'vector.service' in ansible_facts.services"

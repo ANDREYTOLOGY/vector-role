@@ -1,47 +1,78 @@
 ---
-- name: Install prerequisites
+- name: Install prerequisites on Debian
   ansible.builtin.apt:
     name:
       - curl
-      - gpg
-    update_cache: true
-  become: true
-  when: ansible_facts.os_family == "Debian"
-
-- name: Add Vector APT repository key
-  ansible.builtin.apt_key:
-    url: https://repositories.timber.io/public/vector/cfg/gpg/gpg.4096.pem
+      - ca-certificates
+      - gnupg
     state: present
-  become: true
-  when: ansible_facts.os_family == "Debian"
-
-- name: Add Vector APT repository
-  ansible.builtin.apt_repository:
-    repo: "deb https://repositories.timber.io/public/vector/deb/ubuntu {{ ansible_facts.distribution_release }} main"
-    state: present
-  become: true
-  when: ansible_facts.os_family == "Debian"
-
-- name: Install Vector
-  ansible.builtin.apt:
-    name: "vector={{ vector_version }}*"
     update_cache: true
-  become: true
   when: ansible_facts.os_family == "Debian"
+
+- name: Install prerequisites on RedHat
+  ansible.builtin.raw: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y curl ca-certificates
+    else
+      yum install -y curl ca-certificates
+    fi
+  changed_when: false
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Add Vector repository on Debian
+  ansible.builtin.shell: bash -c "$(curl -L https://setup.vector.dev)"
+  args:
+    creates: /etc/apt/sources.list.d/vector.list
+  when: ansible_facts.os_family == "Debian"
+
+- name: Add Vector repository on RedHat
+  ansible.builtin.raw: |
+    if [ ! -f /etc/yum.repos.d/vector.repo ]; then
+      bash -c "$(curl -L https://setup.vector.dev)"
+    fi
+  changed_when: false
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install Vector on Debian
+  ansible.builtin.package:
+    name: vector
+    state: present
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install Vector on RedHat
+  ansible.builtin.raw: |
+    if ! rpm -q vector >/dev/null 2>&1; then
+      if command -v dnf >/dev/null 2>&1; then
+        dnf --setopt=timeout=300 --setopt=minrate=1 install -y vector
+      else
+        yum install -y vector
+      fi
+    fi
+  changed_when: false
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Ensure /etc/vector exists
+  ansible.builtin.file:
+    path: /etc/vector
+    state: directory
+    mode: "0755"
 
 - name: Render Vector config
   ansible.builtin.template:
-    src: vector.yml.j2
-    dest: "{{ vector_config_path }}"
-    owner: root
-    group: root
+    src: vector.yaml.j2
+    dest: /etc/vector/vector.yaml
     mode: "0644"
-  become: true
-  notify: Restart vector
 
-- name: Enable and start Vector
+- name: Validate Vector config
+  ansible.builtin.command: vector validate /etc/vector/vector.yaml
+  changed_when: false
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Enable and start vector
   ansible.builtin.service:
-    name: "{{ vector_service_name }}"
-    enabled: true
+    name: vector
     state: started
-  become: true
+    enabled: true
+  when: "'vector.service' in ansible_facts.services"

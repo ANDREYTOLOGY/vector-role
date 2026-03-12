@@ -1,18 +1,18 @@
 ---
 galaxy_info:
-  role_name: vector
   author: Andrey Chernyshov
-  description: Install and configure Vector (Debian/Ubuntu via APT).
-  license: BSD
-  min_ansible_version: "2.12"
+  namespace: andrey
+  role_name: vector
+  description: Install and configure Vector
+  license: MIT
+  min_ansible_version: "2.14"
+
   platforms:
     - name: Ubuntu
-      versions: ["focal", "jammy", "noble"]
-    - name: Debian
-      versions: ["bullseye", "bookworm"]
-  galaxy_tags:
-    - vector
-    - logging
-    - observability
+      versions:
+        - all
+    - name: EL
+      versions:
+        - "8"
 
 dependencies: []

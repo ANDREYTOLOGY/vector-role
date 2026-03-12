@@ -1,0 +1,26 @@
+---
+- name: Bootstrap test hosts
+  hosts: molecule
+  gather_facts: false
+  tasks:
+    - name: Install python on Debian/Ubuntu
+      ansible.builtin.raw: |
+        if command -v apt-get >/dev/null 2>&1; then
+          apt-get update -y && apt-get install -y python3 python3-apt curl ca-certificates gnupg
+        fi
+      changed_when: false
+
+    - name: Install python on Oracle/RHEL
+      ansible.builtin.raw: |
+        if command -v dnf >/dev/null 2>&1; then
+          dnf install -y python39 curl ca-certificates
+        elif command -v yum >/dev/null 2>&1; then
+          yum install -y python39 curl ca-certificates
+        fi
+      changed_when: false
+
+- name: Converge
+  hosts: molecule
+  gather_facts: true
+  roles:
+    - role: vector-role
